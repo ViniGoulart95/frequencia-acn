@@ -50,6 +50,7 @@ input[type=date],input[type=month]{min-width:0;max-width:100%;-webkit-appearance
 .btn:active,.pill:active,.ic:active{opacity:.75}
 .ic{flex:none;width:44px;height:44px;border:0;border-radius:12px;background:var(--soft);color:var(--ac);font:inherit;font-size:24px;font-weight:700;line-height:1}
 .pill{border:0;background:var(--soft);color:var(--ac);font:inherit;font-size:13.5px;font-weight:600;padding:7px 12px;border-radius:999px;cursor:pointer}
+.pill.on{background:var(--ac);color:var(--acfg)}
 .pills{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
 .seg{display:flex;background:var(--soft);padding:3px;border-radius:13px;margin-bottom:12px}
 .seg button{flex:1;border:0;background:none;color:var(--mut);font:inherit;font-weight:700;padding:9px 0;border-radius:10px}
@@ -158,8 +159,31 @@ var TABS=[['chamada','Chamada','✅'],['freq','Frequência','📊'],['provas','C
 
 function openDay(dt){date=dt;tab='chamada';render();window.scrollTo(0,0)}
 function shift(n){var d=pd(date);d.setDate(d.getDate()+n);date=ds(d);render()}
-function setCode(id,k){var d=S.r[date]||(S.r[date]={});if(d[id]===k)delete d[id];else d[id]=k;if(!Object.keys(d).length)delete S.r[date];save();render()}
-function markAll(k,gk){if(!S.a.length)return;var d=S.r[date]=S.r[date]||{};S.a.forEach(function(a){if(gk&&grpOf(a,+date.slice(0,4))!==gk)return;if(k!=='C'||!d[a.id])d[a.id]=k});save();render()}
+function evsOn(dt){return S.e.filter(function(e){return dt>=e.d&&dt<=(e.d2||e.d)})}
+function evOn(dt,id){return evsOn(dt).some(function(e){return (e.at||[]).indexOf(id)>=0||S.p.some(function(r){return r.e===e.id&&r.a===id})})}
+/* preenchimento automático (configurável em Atletas > Técnicos e dados): o que foi marcado sempre vale mais */
+var WDN=['Dom','Seg','Ter','Qua','Qui','Sex','Sáb'],WDO=[1,2,3,4,5,6,0];
+function CF(){var c=S.cf||{},r=c.rest||{};return {on:c.on===undefined?1:c.on,from:c.from===undefined?'2027-01-01':c.from,cp:c.cp===undefined?1:c.cp,rest:{g1:r.g1||[0,6],g2:r.g2||[0,6]}}}
+function cfSet(k,v){var c=CF();c[k]=v;S.cf=c;save();render()}
+function cfRest(g,w){var c=CF(),l=c.rest[g].slice(),i=l.indexOf(w);if(i>=0)l.splice(i,1);else l.push(w);c.rest[g]=l;S.cf=c;save();render()}
+function rv(dt,id){var v=(S.r[dt]||{})[id];return v!==undefined?v:auto(dt,id)}
+function auto(dt,id){var c=CF();if(!c.on||dt<c.from)return '';
+  if(c.cp&&evOn(dt,id))return 'P';var a=S.a.find(function(x){return x.id===id});if(!a)return '';
+  return c.rest[grpOf(a,+dt.slice(0,4))]&&c.rest[grpOf(a,+dt.slice(0,4))].indexOf(pd(dt).getDay())>=0?'D':''}
+function autoCard(){var c=CF(),h='<div class="card"><div class="name">⚙️ Preenchimento automático</div><div class="mut" style="margin:6px 0 10px">Marca descanso e competição sozinho na Chamada. Não grava nada: o que você marcar à mão sempre vale mais. Dias antes da data escolhida não mudam.</div>';
+  h+='<div class="pills" style="margin-bottom:12px"><button class="pill'+(c.on?' on':'')+'" onclick="cfSet(\'on\','+(c.on?0:1)+')">'+(c.on?'Ligado':'Desligado')+'</button></div>';
+  if(c.on){h+='<div class="mut" style="margin-bottom:4px">Valer a partir de</div><input type="date" value="'+c.from+'" onchange="cfSet(\'from\',this.value)">';
+    ['g1','g2'].forEach(function(g){h+='<div class="mut" style="margin:14px 0 6px"><b>'+GRN[g]+'</b>: dias de descanso (toque para marcar)</div><div class="pills">'+WDO.map(function(w){return '<button class="pill'+(c.rest[g].indexOf(w)>=0?' on':'')+'" onclick="cfRest(\''+g+'\','+w+')">'+WDN[w]+'</button>'}).join('')+'</div>'});
+    h+='<div class="mut" style="margin:14px 0 6px">Competições</div><div class="pills"><button class="pill'+(c.cp?' on':'')+'" onclick="cfSet(\'cp\','+(c.cp?0:1)+')">🏆 Atletas do evento já vêm como competição</button></div>'}
+  return h+'</div>'}
+function setCode(id,k){var d=S.r[date]||(S.r[date]={});if(rv(date,id)===k){if(auto(date,id))d[id]='';else delete d[id]}else d[id]=k;if(!Object.keys(d).length)delete S.r[date];save();render()}
+function scopeA(gk){var y=+date.slice(0,4);return S.a.filter(function(a){return !gk||grpOf(a,y)===gk})}
+function allSet(k,gk){var l=scopeA(gk);return l.length>0&&l.every(function(a){return rv(date,a.id)===k})}
+/* toque marca todos; se todos já estão assim, o toque desmarca */
+function markAll(k,gk){if(!S.a.length)return;var l=scopeA(gk),d=S.r[date]=S.r[date]||{};
+  if(allSet(k,gk))l.forEach(function(a){if(auto(date,a.id))d[a.id]='';else delete d[a.id]});
+  else l.forEach(function(a){if(k!=='C'||!rv(date,a.id))d[a.id]=k});
+  if(!Object.keys(d).length)delete S.r[date];save();render()}
 function getN(dt,id){return (S.n[dt]||{})[id]||{}}
 function putN(dt,id,f,v){var d=S.n[dt]||(S.n[dt]={}),e=d[id]||(d[id]={});if(v===null||v===undefined)delete e[f];else e[f]=v;if(!Object.keys(e).length)delete d[id];if(!Object.keys(d).length)delete S.n[dt];save()}
 function setBorg(id,v){putN(date,id,'b',getN(date,id).b===v?null:v);render()}
@@ -508,7 +532,7 @@ function pdfTable(){
     if(y>560)head();
     var gk=grpOf(r.a,y0);if(gk!==lg){lg=gk;P.r(30,y,782,15,[.94,.97,.95]);P.t(34,y+11,GRN[gk],9,1);y+=15;if(y>560)head()}
     P.t(34,y+12,cut(r.a.name,28),9,0);
-    for(var d=1;d<=nd;d++){var k=(S.r[mon+'-'+p2(d)]||{})[r.a.id];
+    for(var d=1;d<=nd;d++){var k=rv(mon+'-'+p2(d),r.a.id);
       if(k){P.r(x0+(d-1)*dw+1,y+1,dw-2,16,COL[k]);P.t(x0+(d-1)*dw+dw/2-2.5,y+12,k,8,1)}}
     P.t(x0+nd*dw+6,y+12,fp(r.p),8,0);P.l(30,y+18,812,y+18);y+=18});
   sharePDF(P.out(),'frequencia-tabela-'+mon+'.pdf');
@@ -542,13 +566,13 @@ function setMode(v){F.mode=v;F.sp=[];render()}
 /* eventos */
 function newE(id){
   var e=id?S.e.find(function(x){return x.id===id}):null;
-  EF=e?{id:e.id,n:e.n,d:e.d,d2:e.d2||'',pl:e.pl}:{id:null,n:'',d:ds(new Date()),d2:'',pl:'25'};
+  EF=e?{id:e.id,n:e.n,d:e.d,d2:e.d2||'',pl:e.pl,at:(e.at||[]).slice()}:{id:null,n:'',d:ds(new Date()),d2:'',pl:'25',at:[]};
   render();window.scrollTo(0,0)}
 function saveE(){
   if(!EF.n.trim())return alert('Dê um nome ao evento.');
   if(!EF.d)return alert('Informe a data.');
   if(EF.d2&&EF.d2<EF.d)return alert('A data final deve ser depois da inicial.');
-  var rec={id:EF.id||'e'+Date.now().toString(36)+Math.random().toString(36).slice(2,5),n:EF.n.trim(),d:EF.d,d2:EF.d2||'',pl:EF.pl};
+  var rec={id:EF.id||'e'+Date.now().toString(36)+Math.random().toString(36).slice(2,5),n:EF.n.trim(),d:EF.d,d2:EF.d2||'',pl:EF.pl,at:EF.at.slice()};
   if(EF.id){S.e=S.e.map(function(x){return x.id===EF.id?rec:x});S.p.forEach(function(r){if(r.e===rec.id){r.c=rec.n;r.pl=rec.pl}})}
   else{S.e.push(rec);curE=rec.id;pview='evento';pfa='todos'}
   EF=null;save();render();window.scrollTo(0,0)}
@@ -557,11 +581,17 @@ function delE(id){
   if(!confirm('Remover este evento'+(n?' e os '+n+' resultados dele':'')+'?'))return;
   S.e=S.e.filter(function(e){return e.id!==id});S.p=S.p.filter(function(r){return r.e!==id});
   pview='lista';curE=null;save();render()}
+function togAt(id){var i=EF.at.indexOf(id);if(i>=0)EF.at.splice(i,1);else EF.at.push(id);render()}
+function setAtG(gk){var yr=+(EF.d||ds(new Date())).slice(0,4);S.a.forEach(function(a){if((!gk||grpOf(a,yr)===gk)&&EF.at.indexOf(a.id)<0)EF.at.push(a.id)});render()}
+function clrAt(){EF.at=[];render()}
 function pEForm(){
   var h='<div class="card"><div class="name" style="font-size:18px">'+(EF.id?'Editar evento':'Novo evento')+'</div>';
   h+='<input placeholder="Nome da competição (ex.: Campeonato Estadual)" value="'+esc(EF.n)+'" oninput="EF.n=this.value">';
   h+='<div class="g2" style="margin-top:8px"><div><div class="mut">Data</div><input type="date" value="'+EF.d+'" onchange="EF.d=this.value"></div><div><div class="mut">Até (opcional)</div><input type="date" value="'+EF.d2+'" onchange="EF.d2=this.value"></div></div>';
   h+='<div class="mut" style="margin:8px 0 4px">Piscina</div><select onchange="EF.pl=this.value"><option value="25"'+(EF.pl==='25'?' selected':'')+'>25m</option><option value="50"'+(EF.pl==='50'?' selected':'')+'>50m</option></select>';
+  h+='<div class="mut" style="margin:14px 0 6px">Quem vai competir ('+EF.at.length+')</div>';
+  if(S.a.length){h+='<div class="pills" style="margin-bottom:8px"><button class="pill" onclick="setAtG(\'\')">Todos</button><button class="pill" onclick="setAtG(\'g1\')">Pré-mirim a Petiz</button><button class="pill" onclick="setAtG(\'g2\')">Infantil a Sênior</button><button class="pill" onclick="clrAt()">Limpar</button></div><div class="pills">'+S.a.map(function(a){return '<button class="pill'+(EF.at.indexOf(a.id)>=0?' on':'')+'" onclick="togAt(\''+a.id+'\')">'+esc(a.name)+'</button>'}).join('')+'</div><div class="mut" style="margin-top:8px">Eles aparecem como 🏆 Competição na Chamada, nos dias do evento. Quem tiver resultado lançado também entra.</div>'}
+  else h+='<div class="mut">Cadastre atletas para escolher quem vai competir.</div>';
   h+='<div class="g2" style="margin-top:10px"><button class="btn ghost" onclick="EF=null;render()">Cancelar</button><button class="btn" onclick="saveE()">Salvar</button></div></div>';
   return h}
 
@@ -687,18 +717,23 @@ function render(){
   document.getElementById('nav').innerHTML='<div class="navin">'+TABS.map(function(t){return '<button class="'+(navCur()===t[0]?'on':'')+'" onclick="go(\''+t[0]+'\')"><span class="ico">'+t[2]+'</span>'+t[1]+'</button>'}).join('')+'</div>';
   var h='';
   if(tab==='chamada'){
-    var dd=pd(date),yrC=+date.slice(0,4),gl=grouped(yrC),heads=gl.some(function(g){return g.k!=='sem'}),dr=S.r[date]||{},mk=S.a.filter(function(a){return dr[a.id]}).length;
+    var dd=pd(date),yrC=+date.slice(0,4),gl=grouped(yrC),heads=gl.some(function(g){return g.k!=='sem'}),dr=S.r[date]||{},mk=S.a.filter(function(a){return rv(date,a.id)}).length;
     h+=bdBanner();
     h+='<div class="mnav"><button class="ic" onclick="shift(-1)" aria-label="Dia anterior">‹</button><label class="dl"><b>'+cap(dd.toLocaleDateString('pt-BR',{weekday:'long'}))+'</b><span>'+dd.toLocaleDateString('pt-BR',{day:'numeric',month:'long',year:'numeric'})+'</span><input type="date" value="'+date+'" onchange="if(this.value){date=this.value;render()}"></label><button class="ic" onclick="shift(1)" aria-label="Próximo dia">›</button></div>';
-    h+='<div class="card"><div class="row" style="justify-content:space-between"><span><b>'+mk+'</b> de '+S.a.length+' marcados</span>'+(date!==ds(new Date())?'<button class="pill" onclick="date=ds(new Date());render()">Voltar para hoje</button>':'')+'</div><div class="bar" style="margin:8px 0 12px"><i style="width:'+(S.a.length?mk/S.a.length*100:0)+'%"></i></div><div class="pills"><span class="mut">Marcar todos:</span>'+(heads?[]:[['C','✅ Restantes']]).concat([['D','💤 Descanso'],['H','🎉 Feriado'],['P','🏆 Competição']]).map(function(b){return '<button class="pill" onclick="markAll(\''+b[0]+'\')">'+b[1]+'</button>'}).join('')+'</div></div>';
+    h+='<div class="card"><div class="row" style="justify-content:space-between"><span><b>'+mk+'</b> de '+S.a.length+' marcados</span>'+(date!==ds(new Date())?'<button class="pill" onclick="date=ds(new Date());render()">Voltar para hoje</button>':'')+'</div><div class="bar" style="margin:8px 0 12px"><i style="width:'+(S.a.length?mk/S.a.length*100:0)+'%"></i></div><div class="pills"><span class="mut">Marcar todos:</span>'+(heads?[]:[['C','✅ Restantes']]).concat([['D','💤 Descanso'],['H','🎉 Feriado'],['P','🏆 Competição']]).map(function(b){return '<button class="pill'+(allSet(b[0],'')?' on':'')+'" onclick="markAll(\''+b[0]+'\')">'+b[1]+'</button>'}).join('')+'</div></div>';
+    var evh=evsOn(date),wk=dd.getDay(),ht=[],cf=CF();
+    if(cf.on&&date>=cf.from){
+      if(cf.cp&&evh.length)ht.push('🏆 '+evh.map(function(e){return esc(e.n)}).join(', ')+': os atletas do evento já vêm como competição.');
+      var gr=['g1','g2'].filter(function(g){return cf.rest[g].indexOf(wk)>=0});if(gr.length)ht.push('Descanso automático hoje: '+gr.map(function(g){return GRN[g]}).join(' e ')+'.')}
+    if(ht.length)h+='<div class="tip" style="margin:-4px 2px 12px">'+ht.join('<br>')+' Você pode trocar qualquer um tocando no símbolo.</div>';
     h+=treinoCard();
     h+='<details class="leg"><summary>Legenda dos símbolos</summary><div>'+KEYS.map(function(k){return '<span>'+SYM[k][0]+' '+SYM[k][1]+'</span>'}).join('')+'</div></details>';
     if(!S.a.length)h+='<div class="card mut">Nenhum atleta ainda. Vá em “Atletas” e cadastre sua equipe.</div>';
     var AL=alMap(date);
     gl.forEach(function(g){
-      if(heads){var mg=g.list.filter(function(a){return dr[a.id]}).length;h+='<div class="gh"><button class="gt" onclick="togG(\''+g.k+'\')"><span class="arw">'+(colG[g.k]?'▸':'▾')+'</span>'+GRN[g.k]+'<span class="cnt">'+mg+'/'+g.list.length+'</span></button><button class="pill" onclick="markAll(\'C\',\''+g.k+'\')">✅ Marcar restantes</button></div>';if(colG[g.k])return}
+      if(heads){var mg=g.list.filter(function(a){return rv(date,a.id)}).length;h+='<div class="gh"><button class="gt" onclick="togG(\''+g.k+'\')"><span class="arw">'+(colG[g.k]?'▸':'▾')+'</span>'+GRN[g.k]+'<span class="cnt">'+mg+'/'+g.list.length+'</span></button><button class="pill'+(allSet('C',g.k)?' on':'')+'" onclick="markAll(\'C\',\''+g.k+'\')">'+(allSet('C',g.k)?'↩ Desmarcar todos':'✅ Marcar restantes')+'</button></div>';if(colG[g.k])return}
       g.list.forEach(function(a){
-        var cur=dr[a.id];
+        var cur=rv(date,a.id);
         h+='<div class="card"><div class="ah" style="cursor:default"><div class="av '+g.k+'">'+ini(a.name)+'</div><div class="grow"><div class="an">'+esc(a.name)+(AL[a.id]?' <button class="al" aria-label="Atenção" onclick="event.stopPropagation();alOpen=alOpen===\''+a.id+'\'?null:\''+a.id+'\';render()">!</button>':'')+'</div>'+(AL[a.id]&&alOpen===a.id?'<div class="almsg">'+AL[a.id].map(esc).join('<br>')+'</div>':'')+(chips(a,yrC)?'<div>'+chips(a,yrC)+'</div>':'')+'</div><button class="pill" aria-label="Ver página de '+esc(a.name)+'" onclick="openAthlete(\''+a.id+'\')">Ver</button></div><div class="sym">'+KEYS.map(function(k){return '<button data-k="'+k+'" class="'+(cur===k?'on':'')+'" aria-label="'+SYM[k][1]+'" onclick="setCode(\''+a.id+'\',\''+k+'\')">'+SYM[k][0]+'</button>'}).join('')+'</div>'+detPanel(a)+'</div>';
       })});
   }
@@ -717,7 +752,7 @@ function render(){
       st.forEach(function(r){
         var gk=grpOf(r.a,my);if(gk!==lg){lg=gk;h+='<tr><td class="fx" style="max-width:none;overflow:visible;background:var(--sel)">'+GRN[gk]+'</td><td colspan="'+(nd+1)+'" style="background:var(--sel)"></td></tr>'}
         h+='<tr><td class="fx">'+esc(r.a.name)+'</td>';
-        for(var d=1;d<=nd;d++){var k=(S.r[mon+'-'+p2(d)]||{})[r.a.id];h+='<td style="cursor:pointer" onclick="openDay(\''+mon+'-'+p2(d)+'\')">'+(k?SYM[k][0]:'')+'</td>'}
+        for(var d=1;d<=nd;d++){var k=rv(mon+'-'+p2(d),r.a.id);h+='<td style="cursor:pointer" onclick="openDay(\''+mon+'-'+p2(d)+'\')">'+(k?SYM[k][0]:'')+'</td>'}
         h+='<td><b>'+fp(r.p)+'</b></td></tr>';
       });
       h+='</table></div><div class="tip">Deslize para o lado para ver todos os dias. Toque num dia ou símbolo para abrir aquele dia na chamada.</div>';}
@@ -782,7 +817,8 @@ function render(){
       g.list.forEach(function(a){h+='<div class="card"><div class="ah" style="cursor:default;margin-bottom:0"><div class="av '+g.k+'">'+ini(a.name)+'</div><div class="grow"><div class="an">'+esc(a.name)+'</div><div>'+(a.b?'<span class="chip">'+catOf(a.b,yr0)+'</span>':'')+'<span class="chip'+(a.st==='pre'?' y':'')+'">'+(a.st==='pre'?'Pré-equipe':'Federado')+'</span></div><div class="mut" style="margin-top:4px">'+(a.b?age(a.b,yr0)+' anos · nasc. '+dbr(a.b):'Sem data de nascimento')+(a.gr&&a.gr!==autoG(a.b,yr0)?' · treina em outro grupo':'')+'</div></div></div><div class="grid3"><button class="btn ghost" onclick="openAthlete(\''+a.id+'\')">Histórico</button><button class="btn ghost" onclick="editA(\''+a.id+'\')">Editar</button><button class="btn dng" onclick="delAthlete(\''+a.id+'\')">Remover</button></div></div>'})});
     }else{
     h+='<div class="gh"><div class="gt">Técnicos</div></div>'+syncCard();
-    h+='<div class="card"><div class="name">Seu nome neste aparelho</div><div class="mut" style="margin-bottom:8px">Assina as observações que você escrever, para os outros técnicos saberem quem anotou.</div><input value="'+esc(ME)+'" placeholder="Ex.: Vini" onchange="setMe(this.value)"></div>';
+    h+='<div class="card"><div class="name">Seu nome neste aparelho</div><div class="mut" style="margin-bottom:8px">Assina as observações que você escrever, para os outros técnicos saberem quem anotou.</div><input value="'+esc(ME)+'" placeholder="Seu nome" onchange="setMe(this.value)"></div>';
+    h+='<div class="gh"><div class="gt">Chamada</div></div>'+autoCard();
     h+='<div class="gh"><div class="gt">Dados</div></div>';
     h+='<div class="card"><div class="name">Backup</div><div class="mut" style="margin-bottom:10px">Seus dados ficam só neste aparelho. Copie o backup de vez em quando e guarde em Notas.</div><button class="btn" onclick="copyBk()">Copiar backup</button><div id="msg" class="mut" style="margin-top:8px"></div>';
     h+='<textarea id="rs" rows="3" style="margin-top:12px" placeholder="Para restaurar, cole o backup aqui"></textarea><div style="margin-top:10px"><button class="btn ghost" onclick="restore()">Restaurar</button></div></div>';
@@ -799,10 +835,12 @@ function flat(){var o={},d,id;
   for(d in S.r)for(id in S.r[d])o['r:'+d+':'+id]=JSON.stringify(S.r[d][id]);
   for(d in S.n)for(id in S.n[d])o['n:'+d+':'+id]=JSON.stringify(S.n[d][id]);
   for(d in (S.t||{}))for(id in S.t[d])o['t:'+d+':'+id]=JSON.stringify(S.t[d][id]);
+  if(S.cf)o['c:cf']=JSON.stringify(S.cf);
   return o}
 function applyKey(k,json){
   var q=k.split(':'),ty=q[0],v=json===undefined?undefined:JSON.parse(json),L;
   if(ty==='a'||ty==='p'||ty==='e'){L=ty==='a'?'a':ty;S[L]=(S[L]||[]).filter(function(x){return x.id!==q[1]});if(v!==undefined)S[L].push(v)}
+  else if(ty==='c'){if(v===undefined)delete S.cf;else S.cf=v}
   else if(ty==='r'||ty==='n'||ty==='t'){var M=S[ty]=S[ty]||{},d=M[q[1]];
     if(v===undefined){if(d){delete d[q[2]];if(!Object.keys(d).length)delete M[q[1]]}}
     else{if(!d)d=M[q[1]]={};d[q[2]]=v}}}
