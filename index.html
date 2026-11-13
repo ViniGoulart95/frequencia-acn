@@ -584,13 +584,24 @@ function delE(id){
 function togAt(id){var i=EF.at.indexOf(id);if(i>=0)EF.at.splice(i,1);else EF.at.push(id);render()}
 function setAtG(gk){var yr=+(EF.d||ds(new Date())).slice(0,4);S.a.forEach(function(a){if((!gk||grpOf(a,yr)===gk)&&EF.at.indexOf(a.id)<0)EF.at.push(a.id)});render()}
 function clrAt(){EF.at=[];render()}
+function atOpen(){EF.ao=!EF.ao;render()}
+function atFind(q){q=(q||'').toLowerCase();var n=0;document.querySelectorAll('.atrow').forEach(function(b){var ok=!q||b.getAttribute('data-n').indexOf(q)>=0;b.style.display=ok?'':'none';if(ok)n++});var e=document.getElementById('atnone');if(e)e.style.display=n?'none':''}
+function atSum(){var nm=EF.at.map(function(id){var a=S.a.find(function(x){return x.id===id});return a?a.name.split(' ')[0]:''}).filter(Boolean);if(!nm.length)return 'Ninguém escolhido ainda';var t=nm.slice(0,3).join(', ');return nm.length>3?t+' e +'+(nm.length-3):t}
 function pEForm(){
   var h='<div class="card"><div class="name" style="font-size:18px">'+(EF.id?'Editar evento':'Novo evento')+'</div>';
   h+='<input placeholder="Nome da competição (ex.: Campeonato Estadual)" value="'+esc(EF.n)+'" oninput="EF.n=this.value">';
   h+='<div class="g2" style="margin-top:8px"><div><div class="mut">Data</div><input type="date" value="'+EF.d+'" onchange="EF.d=this.value"></div><div><div class="mut">Até (opcional)</div><input type="date" value="'+EF.d2+'" onchange="EF.d2=this.value"></div></div>';
   h+='<div class="mut" style="margin:8px 0 4px">Piscina</div><select onchange="EF.pl=this.value"><option value="25"'+(EF.pl==='25'?' selected':'')+'>25m</option><option value="50"'+(EF.pl==='50'?' selected':'')+'>50m</option></select>';
   h+='<div class="mut" style="margin:14px 0 6px">Quem vai competir ('+EF.at.length+')</div>';
-  if(S.a.length){h+='<div class="pills" style="margin-bottom:8px"><button class="pill" onclick="setAtG(\'\')">Todos</button><button class="pill" onclick="setAtG(\'g1\')">'+GRS.g1+'</button><button class="pill" onclick="setAtG(\'g2\')">'+GRS.g2+'</button><button class="pill" onclick="clrAt()">Limpar</button></div><div class="pills">'+S.a.map(function(a){return '<button class="pill'+(EF.at.indexOf(a.id)>=0?' on':'')+'" onclick="togAt(\''+a.id+'\')">'+esc(a.name)+'</button>'}).join('')+'</div><div class="mut" style="margin-top:8px">Eles aparecem como 🏆 Competição na Chamada, nos dias do evento. Quem tiver resultado lançado também entra.</div>'}
+  if(S.a.length){
+    h+='<div class="pills" style="margin-bottom:6px"><button class="pill" onclick="setAtG(\'\')">Todos</button><button class="pill" onclick="setAtG(\'g1\')">'+GRS.g1+'</button><button class="pill" onclick="setAtG(\'g2\')">'+GRS.g2+'</button><button class="pill" onclick="clrAt()">Limpar</button></div>';
+    h+='<div class="mut" style="margin:4px 0 8px">'+esc(atSum())+'</div>';
+    h+='<button class="btn ghost" style="width:100%" onclick="atOpen()">'+(EF.ao?'▲ Fechar a lista':'▼ Escolher um a um')+'</button>';
+    if(EF.ao){
+      h+='<input placeholder="Buscar atleta..." style="margin-top:8px" oninput="atFind(this.value)">';
+      h+='<div style="max-height:260px;overflow-y:auto;margin-top:8px;display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:6px;-webkit-overflow-scrolling:touch">'+S.a.map(function(a){var on=EF.at.indexOf(a.id)>=0;return '<button class="pill atrow'+(on?' on':'')+'" data-n="'+esc(a.name.toLowerCase())+'" style="text-align:left;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;border-radius:12px;padding:8px 10px;font-size:13px" onclick="togAt(\''+a.id+'\')">'+(on?'✓ ':'')+esc(a.name)+'</button>'}).join('')+'</div><div id="atnone" class="mut" style="display:none;margin-top:6px">Nenhum atleta encontrado.</div>';
+    }
+    h+='<div class="mut" style="margin-top:8px">Eles aparecem como 🏆 Competição na Chamada, nos dias do evento. Quem tiver resultado lançado também entra.</div>'}
   else h+='<div class="mut">Cadastre atletas para escolher quem vai competir.</div>';
   h+='<div class="g2" style="margin-top:10px"><button class="btn ghost" onclick="EF=null;render()">Cancelar</button><button class="btn" onclick="saveE()">Salvar</button></div></div>';
   return h}
