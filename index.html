@@ -1078,6 +1078,10 @@ CLOUD={
   write:function(list){
     for(var i=0;i<list.length;i+=400){var b=CLOUD.db.batch();list.slice(i,i+400).forEach(function(x){b.set(CLOUD.col.doc(x.k),{v:x.v,t:x.t,d:x.d})});b.commit().catch(function(err){syStatus('erro ao enviar: '+(err.code||err.message))})}}};
 document.addEventListener('focusout',function(){if(SY&&SY.dirty){SY.dirty=false;setTimeout(render,150)}});
+/* iPhone: depois de fechar o teclado, a barra de baixo às vezes fica "presa" no meio da tela. Isto força o Safari a recalcular a tela. */
+function vvFix(){var y=window.pageYOffset;window.scrollTo(0,y+1);window.scrollTo(0,y);var n=document.querySelector('nav');if(n){n.style.transform='translateZ(0)';requestAnimationFrame(function(){n.style.transform=''})}}
+document.addEventListener('focusout',function(e){var t=e.target&&e.target.tagName;if(t==='INPUT'||t==='SELECT'||t==='TEXTAREA'){setTimeout(vvFix,150);setTimeout(vvFix,700)}});
+if(window.visualViewport)window.visualViewport.addEventListener('resize',function(){setTimeout(vvFix,250)});
 document.addEventListener('visibilitychange',function(){if(document.visibilityState==='hidden'&&SY&&SY.ready){syPush();syPersist(true)}else if(SY&&document.visibilityState==='visible'&&SYU===null)syStart()});
 window.addEventListener('online',function(){if(SY&&SYU===null)syStart();else if(SY)syStatus('conectando…')});
 window.addEventListener('offline',function(){if(SY)syStatus('sem internet (salvo no aparelho)')});
