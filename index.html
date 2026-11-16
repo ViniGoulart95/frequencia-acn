@@ -550,7 +550,10 @@ function evOrd(k){var o=0;STK.forEach(function(s,i){if(s[0]===k[0])o=i});return 
 function ivOpts(d){return d===50?[25]:d===100?[50]:[50,100,200,400,800].filter(function(x){return x<d})}
 function marksOf(d,iv){var m=[];for(var x=iv;x<d;x+=iv)m.push(x);return m}
 function pt(s){
-  s=String(s).trim().replace(/,/g,'.');var m=s.match(/^(\d{1,3})[:.](\d{1,2})[:.](\d{1,2})$/);
+  s=String(s).trim().replace(/[’'′´`"“”″]+/g,'.').replace(/,/g,'.');
+  var m=s.match(/^(\d{4,6})$/);   /* só números, como no cronômetro: 10532 = 1:05,32 e 2785 = 27,85 */
+  if(m){var dg=m[1],ss=Number(dg.slice(-4,-2));if(ss>59)return null;return (dg.length>4?Number(dg.slice(0,-4)):0)*6000+ss*100+Number(dg.slice(-2))}
+  m=s.match(/^(\d{1,3})[:.](\d{1,2})[:.](\d{1,2})$/);
   if(m){if(Number(m[2])>59)return null;return Number(m[1])*6000+Number(m[2])*100+(m[3].length===1?Number(m[3])*10:Number(m[3]))}
   m=s.match(/^(\d{1,3}):(\d{1,2})$/);if(m){if(Number(m[2])>59)return null;return Number(m[1])*6000+Number(m[2])*100}
   m=s.match(/^(\d{1,4})(?:\.(\d{1,2}))?$/);if(m){var fr=m[2]?(m[2].length===1?Number(m[2])*10:Number(m[2])):0;return Number(m[1])*100+fr}
@@ -561,6 +564,8 @@ function dbr(d){return d.slice(8)+'/'+d.slice(5,7)+'/'+d.slice(0,4)}
 function aName(id){var a=S.a.find(function(x){return x.id===id});return a?a.name:'(removido)'}
 function evDates(e){return dbr(e.d)+(e.d2?' a '+dbr(e.d2):'')}
 function sf(k,v){F[k]=v}
+function tpvTxt(v){v=String(v||'').trim();if(!v)return 'Dica: pode digitar só os números. 10532 vira 1:05,32 e 2785 vira 27,85.';var c=pt(v);return c?'→ '+ft(c):'⚠ Não entendi esse tempo'}
+function tpv(v){var e=document.getElementById('tpv');if(e)e.textContent=tpvTxt(v)}
 function setEv(v){F.ev=v;F.iv=ivOpts(evDist(v))[0];F.sp=[];render()}
 function setIv(v){F.iv=Number(v);F.sp=[];render()}
 function setMode(v){F.mode=v;F.sp=[];render()}
@@ -639,7 +644,7 @@ function pForm(){
   h+='<select onchange="sf(\'a\',this.value)"><option value="">Escolha o atleta</option>'+S.a.filter(function(a){return (a.st||'fed')==='fed'||a.id===F.a}).map(function(a){return '<option value="'+a.id+'"'+(F.a===a.id?' selected':'')+'>'+esc(a.name)+'</option>'}).join('')+'</select>';
   h+='<div class="mut" style="margin:4px 0 0">Só atletas federados aparecem aqui.</div><input type="date" style="margin-top:8px" value="'+F.d+'" onchange="sf(\'d\',this.value)">';
   h+='<select style="margin-top:8px" onchange="setEv(this.value)">'+evOpts(F.ev,'').replace('<option value=""></option>','')+'</select>';
-  h+='<div class="mut" style="margin:10px 0 4px">Tempo final</div><input inputmode="decimal" placeholder="ex.: 1:05,32 ou 27,85" value="'+esc(F.f)+'" oninput="sf(\'f\',this.value)">';
+  h+='<div class="mut" style="margin:10px 0 4px">Tempo final</div><input inputmode="decimal" placeholder="ex.: 1:05,32 ou 27,85" value="'+esc(F.f)+'" oninput="sf(\'f\',this.value);tpv(this.value)"><div id="tpv" class="mut" style="margin-top:4px">'+esc(tpvTxt(F.f))+'</div>';
   h+='<div class="g2" style="margin-top:10px"><div><div class="mut">Parcial a cada</div><select onchange="setIv(this.value)">'+ivOpts(d).map(function(x){return '<option value="'+x+'"'+(F.iv===x?' selected':'')+'>'+x+'m</option>'}).join('')+'</select></div><div><div class="mut">Digitar como</div><select onchange="setMode(this.value)"><option value="acum"'+(F.mode==='acum'?' selected':'')+'>Acumulado</option><option value="trecho"'+(F.mode==='trecho'?' selected':'')+'>Tempo de cada trecho</option></select></div></div>';
   h+='<div class="mut" style="margin:8px 0">'+(F.mode==='acum'?'Acumulado: o tempo desde a largada em cada ponto (ex.: aos 50m, 27,85). O app calcula o tempo de cada trecho.':'Trecho: o tempo gasto só naquele pedaço. O último trecho é calculado a partir do tempo final.')+'</div>';
   ms.forEach(function(m,i){var lab=F.mode==='acum'?m+'m':(i?ms[i-1]:0)+'–'+m+'m';h+='<div class="row" style="margin-bottom:6px"><div class="mut" style="width:84px">'+lab+'</div><input inputmode="decimal" placeholder="0,00" value="'+esc(F.sp[i]||'')+'" oninput="F.sp['+i+']=this.value"></div>'});
